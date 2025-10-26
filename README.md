@@ -396,6 +396,17 @@ GET /api/v1/auth/profile
 Authorization: Bearer <token>
 ```
 
+**User Logout**
+```http
+POST /api/v1/auth/logout
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "refreshToken": "refresh_token_here"
+}
+```
+
 #### 🏢 Business Owner APIs (`/api/v1/business`)
 
 **Get Owner's Projects**
@@ -440,6 +451,18 @@ Content-Type: application/json
 }
 ```
 
+**Submit Application**
+```http
+PUT /api/v1/business/owner/applications/:id/submit
+Authorization: Bearer <business-owner-token>
+```
+
+**Get Application Details**
+```http
+GET /api/v1/business/owner/applications/:id
+Authorization: Bearer <business-owner-token>
+```
+
 **Get Analytics**
 ```http
 GET /api/v1/business/owner/analytics
@@ -470,15 +493,16 @@ GET /api/v1/blockdag/transactions/:address/history
 
 #### 📁 File Upload APIs (`/api/v1/files`)
 
-**Upload File**
+**Upload File(s)**
 ```http
 POST /api/v1/files/upload
 Authorization: Bearer <token>
 Content-Type: multipart/form-data
 
-file: [binary data]
+files: [binary data] (supports multiple files, max 10)
 category: team_photos
 projectId: project-uuid (optional)
+applicationId: application-uuid (optional)
 ```
 
 **Get File Details**
