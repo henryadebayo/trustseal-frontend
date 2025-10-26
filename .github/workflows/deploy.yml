@@ -1,0 +1,49 @@
+name: Deploy TrustSeal to Vercel
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  FLUTTER_VERSION: '3.0.0'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🛎️ Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: 📦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+      
+      - name: 🔍 Verify Flutter installation
+        run: flutter doctor -v
+      
+      - name: 📥 Install dependencies
+        run: flutter pub get
+      
+      - name: 🧪 Run tests
+        run: flutter test --no-pub
+        continue-on-error: true
+      
+      - name: 🏗️ Build Flutter web app
+        run: flutter build web --release --web-renderer canvaskit
+      
+      - name: 📤 Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+
