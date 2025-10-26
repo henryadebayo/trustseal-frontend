@@ -963,20 +963,89 @@ class _ProjectApplicationFormScreenState
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
+
+                // Terms and Agreement Section
+                Card(
+                  color: Colors.blue.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.description,
+                              color: Colors.blue.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Terms & Agreement',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade700,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text(
+                            'I agree to TrustSeal Terms of Service and Privacy Policy',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          value:
+                              _communityGuidelinesAccepted, // Reusing this variable
+                          onChanged: (value) => setState(
+                            () => _communityGuidelinesAccepted = value ?? false,
+                          ),
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text(
+                            'I certify that all information provided is accurate',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          value:
+                              _teamVerificationComplete, // Reusing this variable
+                          onChanged: (value) => setState(
+                            () => _teamVerificationComplete = value ?? false,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
 
                 // Submit Button
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _canSubmit() ? _submitApplication : null,
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: _canSubmit() && _communityGuidelinesAccepted
+                        ? _submitApplication
+                        : null,
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade700,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      elevation: 4,
                     ),
-                    child: const Text('Submit Application'),
+                    icon: const Icon(Icons.send, size: 24),
+                    label: const Text(
+                      'Sign & Submit Application',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],

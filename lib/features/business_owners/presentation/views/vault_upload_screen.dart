@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:trustseal_app/core/services/vault_service.dart';
+import 'package:trustseal_app/core/services/smart_contract_service.dart';
 
 class VaultUploadScreen extends StatefulWidget {
   const VaultUploadScreen({super.key});
@@ -15,6 +16,9 @@ class VaultUploadScreen extends StatefulWidget {
 class _VaultUploadScreenState extends State<VaultUploadScreen>
     with TickerProviderStateMixin {
   final VaultService _vaultService = VaultService();
+  final SmartContractService _smartContractService = SmartContractService(
+    baseUrl: 'https://hackerton-8it2.onrender.com',
+  );
   final TextEditingController _descriptionController = TextEditingController();
 
   dynamic _selectedFile; // Can be File or _MockFile
@@ -22,7 +26,10 @@ class _VaultUploadScreenState extends State<VaultUploadScreen>
   List<Map<String, dynamic>> _receivers = [];
   bool _isLoading = false;
   bool _isUploading = false;
+  bool _isCreatingBlockchainTx = false;
   String? _uploadStatus;
+  String? _blockchainTxHash;
+  bool _hasAcceptedTerms = false; // Contract signing acceptance
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -152,7 +159,36 @@ class _VaultUploadScreenState extends State<VaultUploadScreen>
             : _descriptionController.text.trim(),
       );
 
+      // Create blockchain transaction
       setState(() {
+        _isCreatingBlockchainTx = true;
+        _uploadStatus = 'Creating blockchain transaction...';
+      });
+
+      try {
+        final txResult = await _smartContractService.createVaultTransaction(
+          receiverAddress:
+              _receivers.firstWhere(
+                (r) => r['id'] == _selectedReceiverId,
+              )['blockchainAddress'] ??
+              '0x0000000000000000000000000000000000000000',
+          ipfsHash: result['ipfsHash'] ?? '',
+          encryptedFileKey: result['encryptedKey'] ?? '',
+        );
+
+        setState(() {
+          _blockchainTxHash = txResult['txHash'] as String?;
+          _uploadStatus = 'Blockchain transaction created!';
+        });
+      } catch (e) {
+        print('Blockchain transaction failed (non-critical): $e');
+        setState(() {
+          _blockchainTxHash = null;
+        });
+      }
+
+      setState(() {
+        _isCreatingBlockchainTx = false;
         _uploadStatus = 'Upload successful!';
         _isUploading = false;
       });
@@ -174,6 +210,39 @@ class _VaultUploadScreenState extends State<VaultUploadScreen>
               Text('IPFS Hash: ${result['ipfsHash']}'),
               const SizedBox(height: 8),
               Text('IPFS URL: ${result['ipfsUrl']}'),
+              if (_blockchainTxHash != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.link, color: Colors.blue, size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Blockchain Transaction:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _blockchainTxHash!,
+                        style: TextStyle(fontSize: 10, fontFamily: 'monospace'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -255,6 +324,8 @@ class _VaultUploadScreenState extends State<VaultUploadScreen>
       _selectedReceiverId = null;
       _descriptionController.clear();
       _uploadStatus = null;
+      _blockchainTxHash = null;
+      _hasAcceptedTerms = false;
     });
   }
 
@@ -344,6 +415,11 @@ class _VaultUploadScreenState extends State<VaultUploadScreen>
 
                     // Description
                     _buildDescriptionCard(),
+
+                    const SizedBox(height: 20),
+
+                    // Contract Signing Section
+                    _buildContractSigningCard(),
 
                     const SizedBox(height: 24),
 
@@ -758,12 +834,83 @@ class _VaultUploadScreenState extends State<VaultUploadScreen>
     );
   }
 
+  Widget _buildContractSigningCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue.withOpacity(0.5), width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.verified_user, color: Colors.blue.shade300, size: 28),
+              const SizedBox(width: 12),
+              Text(
+                'Security Agreement',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _hasAcceptedTerms,
+            onChanged: (value) {
+              setState(() {
+                _hasAcceptedTerms = value ?? false;
+              });
+            },
+            activeColor: Colors.blue,
+            title: Text(
+              'I understand that this file will be encrypted and can only be accessed by the selected auditor',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _hasAcceptedTerms,
+            onChanged: (value) {
+              setState(() {
+                _hasAcceptedTerms = value ?? false;
+              });
+            },
+            activeColor: Colors.blue,
+            title: Text(
+              'I certify that I have permission to upload this file and it contains no illegal content',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildUploadButton() {
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _isUploading ? null : _uploadFile,
+        onPressed:
+            (_isUploading || _isCreatingBlockchainTx || !_hasAcceptedTerms)
+            ? null
+            : _uploadFile,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: const Color(0xFF3B82F6),
@@ -789,7 +936,13 @@ class _VaultUploadScreenState extends State<VaultUploadScreen>
                   SizedBox(width: 12),
                   Text(
                     'Encrypting & Uploading...',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(
+                        0xFF3B82F6,
+                      ), // Blue text for visibility
+                    ),
                   ),
                 ],
               )
