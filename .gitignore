@@ -1,0 +1,86 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.example
+.env.local
+.env.production
+.env.development
+# Note: .env.example SHOULD be tracked in git (it's a template)
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+build/
+coverage/
+.next/
+out/
+
+# Uploads and Storage (IMPORTANT - contains encrypted files)
+uploads/
+vault-storage/
+ipfs-data/
+
+# Test files
+.test-results/
+playwright-report/
+test-results/
+
+# Temporary documentation files
+FRONTEND_VAULT_COMPLETE_GUIDE.md
+FRONTEND_BACKEND_INTEGRATION_COMPLETE.md
+BLOCKCHAIN_INTEGRATION_GUIDE.md
+BLOCKCHAIN_INTEGRATION_SUMMARY.md
+SMART_CONTRACT_PROMPT.md
+TRUSTSEAL_VAULT_COMPLETE_GUIDE.md
+
+# Security - Private keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Database
+*.sqlite
+*.db
+
+# Temporary files
+*.tmp
+.tmp/
+temp/
+test-*.txt
+*sensitive*
+*downloaded*
+*.bak
