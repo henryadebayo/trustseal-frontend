@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:trustseal_app/core/services/api_service.dart';
 
 class VaultService {
-  static const String _baseUrl = 'http://localhost:3000/api/v1/vault';
+  static const String _baseUrl =
+      'https://hackerton-8it2.onrender.com/api/v1/vault';
 
   // Setup receiver (Admin only)
   Future<Map<String, dynamic>> setupReceiver({

@@ -5,8 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_manager.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000/api/v1';
-  static const String healthUrl = 'http://localhost:3000/health';
+  static const String baseUrl = 'https://hackerton-8it2.onrender.com/api/v1';
+  static const String healthUrl = 'https://hackerton-8it2.onrender.com/health';
 
   static ApiService? _instance;
   static ApiService get instance => _instance ??= ApiService._();
