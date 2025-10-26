@@ -379,6 +379,195 @@ router.get('/status', async (req, res) => {
     }
 });
 
+// ============================================================================
+// BLOCKCHAIN ENDPOINTS FOR FRONTEND INTEGRATION
+// ============================================================================
+
+// POST /api/v1/vault/blockchain/create-transaction - Create blockchain transaction
+router.post('/blockchain/create-transaction', authenticateToken, requireRole(['business']), async (req, res) => {
+    try {
+        const { receiverAddress, ipfsHash, encryptedFileKey, encryptionMetadata } = req.body;
+        const senderId = req.user.id;
+
+        if (!receiverAddress || !ipfsHash || !encryptedFileKey) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'receiverAddress, ipfsHash, and encryptedFileKey are required'
+            });
+        }
+
+        if (!blockchainVaultService || !blockchainVaultService.isServiceAvailable()) {
+            return res.status(503).json({
+                status: 'error',
+                message: 'Blockchain service is not available'
+            });
+        }
+
+        // Call blockchain service to create transaction
+        const result = await blockchainVaultService.createKeyHandshakeTransaction(
+            receiverAddress,
+            ipfsHash,
+            encryptedFileKey,
+            encryptionMetadata || {}
+        );
+
+        // Also store in database for reference
+        await pool.query(
+            `INSERT INTO vault_transactions 
+             (id, sender_id, receiver_id, ipfs_hash, encrypted_file_key, transaction_data)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+                require('crypto').randomUUID(),
+                senderId,
+                receiverAddress, // Store receiver address
+                ipfsHash,
+                encryptedFileKey,
+                JSON.stringify({
+                    ...encryptionMetadata,
+                    blockchainTxHash: result.txHash,
+                    transactionId: result.transactionId,
+                    blockNumber: result.blockNumber
+                })
+            ]
+        );
+
+        res.json({
+            status: 'success',
+            data: {
+                txHash: result.txHash,
+                transactionId: result.transactionId,
+                blockNumber: result.blockNumber
+            }
+        });
+    } catch (error) {
+        logger.error('Error creating blockchain transaction:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to create blockchain transaction',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// GET /api/v1/vault/blockchain/public-key?receiver=0x... - Get receiver's public key from blockchain
+router.get('/blockchain/public-key', async (req, res) => {
+    try {
+        const { receiver } = req.query;
+
+        if (!receiver) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'receiver address is required'
+            });
+        }
+
+        if (!blockchainVaultService || !blockchainVaultService.isServiceAvailable()) {
+            return res.status(503).json({
+                status: 'error',
+                message: 'Blockchain service is not available'
+            });
+        }
+
+        // Try to get from blockchain first
+        const publicKey = await blockchainVaultService.getReceiverPublicKey(receiver);
+
+        if (publicKey) {
+            return res.json({
+                status: 'success',
+                data: {
+                    receiver: receiver,
+                    publicKey: publicKey
+                }
+            });
+        }
+
+        // Fallback: get from database
+        const dbResult = await pool.query(
+            'SELECT public_key FROM receiver_keys WHERE user_id = $1',
+            [receiver]
+        );
+
+        if (dbResult.rows.length > 0) {
+            return res.json({
+                status: 'success',
+                data: {
+                    receiver: receiver,
+                    publicKey: dbResult.rows[0].public_key
+                }
+            });
+        }
+
+        return res.status(404).json({
+            status: 'error',
+            message: 'Public key not found for receiver'
+        });
+    } catch (error) {
+        logger.error('Error getting public key from blockchain:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to get public key'
+        });
+    }
+});
+
+// GET /api/v1/vault/blockchain/transaction/:hash - Get transaction details from blockchain
+router.get('/blockchain/transaction/:hash', async (req, res) => {
+    try {
+        const { hash } = req.params;
+
+        if (!hash) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Transaction hash is required'
+            });
+        }
+
+        // Get from database
+        const result = await pool.query(
+            `SELECT vt.*, 
+                    u.email as sender_email,
+                    u.wallet_address as sender_address
+             FROM vault_transactions vt
+             LEFT JOIN users u ON vt.sender_id = u.id
+             WHERE vt.transaction_data->>'blockchainTxHash' = $1
+             ORDER BY vt.created_at DESC
+             LIMIT 1`,
+            [hash]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Transaction not found'
+            });
+        }
+
+        const transaction = result.rows[0];
+        const blockchainData = transaction.transaction_data;
+
+        res.json({
+            status: 'success',
+            data: {
+                transactionId: transaction.id,
+                sender: transaction.sender_address || transaction.sender_id,
+                receiver: transaction.receiver_id,
+                ipfsHash: transaction.ipfs_hash,
+                encryptedFileKey: transaction.encrypted_file_key,
+                txHash: blockchainData?.blockchainTxHash,
+                blockNumber: blockchainData?.blockNumber,
+                timestamp: new Date(transaction.created_at).toISOString(),
+                status: 'confirmed'
+            }
+        });
+    } catch (error) {
+        logger.error('Error getting transaction details:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to get transaction details'
+        });
+    }
+});
+
 module.exports = router;
 
 
